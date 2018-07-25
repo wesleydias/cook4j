@@ -72,6 +72,8 @@ object Cook4j {
     For the purpose of testing of this code hdfs is used. The raw data is partitioned by created_time_hour as most of the queries 
     have the hour as the main predicate in focus as you will see below. Hence on doing a explain plain on the dataframe you can notice that it makes
     sense to partition our data on Created_time_hours.
+    Also since we are considering large size of data every hour of almost 1 TB, gzip compression is used which is a splitable file format while wrting 
+    the data back to hdfs.
 
     */  
 
