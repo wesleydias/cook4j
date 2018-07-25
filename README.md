@@ -1,2 +1,2 @@
 # cook4j
-Spark solution in retail industry
+Spark solution for retail industry
