@@ -2,6 +2,10 @@ import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.functions._
 import org.apache.log4j.Logger
 
+
+case class RecipeDataEvent(val recipe_id:Double,val recipe_name:String, val description:Option[String])
+case class IngredientDataEvent(val recipe_id:Double,val ingredient:String, val active:Boolean)
+
 object Cook4j {
 
   def main(args: Array[String]) {
@@ -11,11 +15,13 @@ object Cook4j {
     logger.info("Creating spark session...")
     val spark = SparkSession.builder.appName("Cook4j Application").getOrCreate()
 
-        /* 
+    import spark.implicits._
+
+    /*
     Assumptions
     ----------
-    The data received every hour of 1 TB, and is full load. Hence all write operations uses "Overwrite" mode.
-    Incase of Incremental load the Mode will change to "Append".
+    The data received every hour of 1 TB, and is Incremental load. Hence all write operations uses "Append" mode.
+    Incase of Full load the Mode will change to "Overwrite".
     */  
 
     logger.info("Reading raw csv file...")
@@ -27,7 +33,7 @@ object Cook4j {
 
     logger.info("Writing in parquet format for performance optimization with gzip compression...")
     val write_pq = read_raw.withColumn("created_ts", ts1).withColumn("created_hours", ts2).withColumn("updated_date", ts3)
-    write_pq.write.format("parquet").mode("Overwrite").option("compression","gzip").partitionBy("created_hours").save("/mnt/wesley/customer/walmart/")
+    write_pq.write.format("parquet").mode("Append").option("compression","gzip").partitionBy("created_hours").save("/mnt/wesley/customer/walmart/")
 
     logger.info("Reading in parquet format for query analysis...")
     val df=spark.read.load("/mnt/wesley/customer/walmart/")
@@ -59,11 +65,11 @@ object Cook4j {
     */  
 
     logger.info("As part of Data Model - Writing in parquet format for recipe table...")
-    val df1 = df.select("recipe_id","recipe_name","description").distinct().orderBy(asc("recipe_id"))
+    val df1 = df.select("recipe_id","recipe_name","description").distinct().orderBy(asc("recipe_id")).as[RecipeDataEvent]
     df1.write.format("parquet").mode("Overwrite").option("compression","gzip").save("/mnt/wesley/customer/recipe/")
 
     logger.info("As part of Data Model - Writing in parquet format for ingredients table...")
-    val df2 = df.select("recipe_id","ingredient","active").distinct().orderBy(asc("recipe_id"))
+    val df2 = df.select("recipe_id","ingredient","active").distinct().orderBy(asc("recipe_id")).as[IngredientDataEvent]
     df2.write.format("parquet").mode("Overwrite").option("compression","gzip").save("/mnt/wesley/customer/ingedients/")
 
     /* 
